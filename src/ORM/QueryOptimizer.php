@@ -10,7 +10,7 @@ namespace Aphrodite\ORM;
 class QueryOptimizer
 {
     /**
-     * Optimise a query descriptor array by adding eager-loading hints.
+     * Optimize a query descriptor array by adding eager-loading hints.
      */
     public function optimize(array $query): array
     {
