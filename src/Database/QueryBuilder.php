@@ -85,7 +85,8 @@ class QueryBuilder
             $operator = '=';
         }
 
-        $this->where[] = "{$column} {$operator} ?";
+        $conjunction = empty($this->where) ? '' : 'AND ';
+        $this->where[] = "{$conjunction}{$column} {$operator} ?";
         $this->whereBindings[] = $value;
         return $this;
     }

@@ -22,6 +22,11 @@ class RateLimitMiddleware extends \Aphrodite\Http\Middleware
         $this->decaySeconds = $decaySeconds;
     }
 
+    protected function handle(Request $request, callable $next): Response
+    {
+        return $this->process($request, $next);
+    }
+
     public function process(Request $request, callable $next): Response
     {
         $key = $this->resolveRequestSignature($request);

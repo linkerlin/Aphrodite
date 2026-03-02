@@ -21,7 +21,7 @@ class LoggingMiddleware extends \Aphrodite\Http\Middleware
         };
     }
 
-    public function process(Request $request, callable $next): Response
+    protected function handle(Request $request, callable $next): Response
     {
         $startTime = microtime(true);
         $method = $request->getMethod();
@@ -38,6 +38,11 @@ class LoggingMiddleware extends \Aphrodite\Http\Middleware
         $this->log("<< {$method} {$uri} - {$status} ({$duration}ms)");
 
         return $response;
+    }
+
+    public function process(Request $request, callable $next): Response
+    {
+        return $this->handle($request, $next);
     }
 
     protected function log(string $message): void
