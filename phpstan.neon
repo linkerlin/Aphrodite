@@ -1,0 +1,11 @@
+parameters:
+    level: 0
+    paths:
+        - src
+    excludePaths:
+        - vendor
+        - src/Http/Middleware/LoggingMiddleware.php
+        - src/Http/Middleware/RateLimitMiddleware.php
+        - src/Logger/Logger.php
+        - src/ORM/Entity.php
+        - src/Config/Config.php
