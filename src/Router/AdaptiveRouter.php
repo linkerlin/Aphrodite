@@ -246,7 +246,10 @@ class AdaptiveRouter
         }
 
         foreach ($result['middleware'] ?? [] as $middleware) {
-            if (class_exists($middleware)) {
+            if ($middleware instanceof \Closure) {
+                $request = $request->setAttribute('route_params', $result['params']);
+                $result['handler'] = fn($req) => $middleware($req, fn($req) => $this->executeHandler($result['handler'], $req, $result['params']));
+            } elseif (class_exists($middleware)) {
                 $instance = new $middleware();
                 $request = $request->setAttribute('route_params', $result['params']);
                 $result['handler'] = fn($req) => $instance->process($req, fn($req) => $this->executeHandler($result['handler'], $req, $result['params']));

@@ -124,7 +124,7 @@ class ArrayCache implements CacheInterface
 
     public function get(string $key, mixed $default = null): mixed
     {
-        if (isset($this->expiry[$key]) && $this->expiry[$key] < time()) {
+        if (isset($this->expiry[$key]) && $this->expiry[$key] > 0 && $this->expiry[$key] < time()) {
             unset($this->store[$key], $this->expiry[$key]);
             return $default;
         }
@@ -142,7 +142,7 @@ class ArrayCache implements CacheInterface
 
     public function has(string $key): bool
     {
-        if (isset($this->expiry[$key]) && $this->expiry[$key] < time()) {
+        if (isset($this->expiry[$key]) && $this->expiry[$key] > 0 && $this->expiry[$key] < time()) {
             unset($this->store[$key], $this->expiry[$key]);
             return false;
         }

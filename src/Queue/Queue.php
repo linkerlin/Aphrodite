@@ -86,9 +86,10 @@ class QueuedJob
     public string $class;
     public array $data;
     public int $attempts;
-    public int $reservedAt;
+    public ?int $reservedAt;
     public ?int $availableAt;
     public ?int $createdAt;
+    public ?string $queue;
 
     public function __construct(
         string $class,
@@ -96,7 +97,8 @@ class QueuedJob
         ?string $id = null,
         int $attempts = 0,
         ?int $reservedAt = null,
-        ?int $availableAt = null
+        ?int $availableAt = null,
+        ?string $queue = null
     ) {
         $this->id = $id ?? uniqid('job_');
         $this->class = $class;
@@ -105,6 +107,12 @@ class QueuedJob
         $this->reservedAt = $reservedAt ?? time();
         $this->availableAt = $availableAt;
         $this->createdAt = time();
+        $this->queue = $queue;
+    }
+
+    public function getQueue(): ?string
+    {
+        return $this->queue;
     }
 
     public function resolve(): JobInterface
@@ -198,7 +206,7 @@ class ArrayQueue implements QueueInterface
     public function push(string $job, array $data = [], ?string $queue = null): string
     {
         $queue = $queue ?? 'default';
-        $queuedJob = new QueuedJob($job, $data);
+        $queuedJob = new QueuedJob($job, $data, null, 0, null, null, $queue);
 
         $this->jobs[$queue][] = $queuedJob;
 
@@ -209,7 +217,7 @@ class ArrayQueue implements QueueInterface
     {
         $queue = $queue ?? 'default';
         $availableAt = time() + $delay;
-        $queuedJob = new QueuedJob($job, $data, null, 0, null, $availableAt);
+        $queuedJob = new QueuedJob($job, $data, null, 0, null, $availableAt, $queue);
 
         $this->jobs[$queue][] = $queuedJob;
 
@@ -306,7 +314,7 @@ class FileQueue implements QueueInterface
     public function push(string $job, array $data = [], ?string $queue = null): string
     {
         $queue = $queue ?? 'default';
-        $queuedJob = new QueuedJob($job, $data);
+        $queuedJob = new QueuedJob($job, $data, null, 0, null, null, $queue);
 
         $file = $this->path . '/' . $queue . '_' . $queuedJob->id . '.json';
         file_put_contents($file, json_encode($queuedJob->toArray()));
@@ -318,7 +326,7 @@ class FileQueue implements QueueInterface
     {
         $queue = $queue ?? 'default';
         $availableAt = time() + $delay;
-        $queuedJob = new QueuedJob($job, $data, null, 0, null, $availableAt);
+        $queuedJob = new QueuedJob($job, $data, null, 0, null, $availableAt, $queue);
 
         $file = $this->path . '/' . $queue . '_' . $queuedJob->id . '.json';
         file_put_contents($file, json_encode($queuedJob->toArray()));

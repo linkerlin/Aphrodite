@@ -88,7 +88,7 @@ interface LoggerInterface
  */
 abstract class AbstractLogger implements LoggerInterface
 {
-    protected int $minLevel = Level::DEBUG;
+    protected int $minLevel = 100; // DEBUG
 
     public function __construct(?int $minLevel = null)
     {

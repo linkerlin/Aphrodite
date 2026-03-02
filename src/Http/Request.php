@@ -29,7 +29,20 @@ class Request
     ) {
         $this->method = $method ?? ($_SERVER['REQUEST_METHOD'] ?? 'GET');
         $this->uri = $uri ?? ($_SERVER['REQUEST_URI'] ?? '/');
-        $this->query = $query ?? $_GET;
+        
+        // Parse query string from URI if provided
+        if ($query === null) {
+            $query = [];
+            if (($pos = strpos($this->uri, '?')) !== false) {
+                parse_str(substr($this->uri, $pos + 1), $query);
+            }
+            // Fall back to $_GET if no query string in URI
+            if (empty($query)) {
+                $query = $_GET;
+            }
+        }
+        
+        $this->query = $query;
         $this->post = $post ?? $_POST;
         $this->headers = $headers ?? $this->parseHeaders();
         $this->server = $server ?? $_SERVER;
