@@ -237,7 +237,141 @@ Queue::later(300, SendEmailJob::class, ['email' => 'user@example.com']); // 5分
 Queue::work();
 ```
 
-### 10. CLI 命令
+### 11. 依赖注入容器
+
+```php
+use Aphrodite\Container\Container;
+
+$container = new Container();
+
+// 绑定服务
+$container->bind(LoggerInterface::class, function ($c) {
+    return new FileLogger('/path/to/log');
+});
+
+// 单例绑定
+$container->singleton(CacheInterface::class, function ($c) {
+    return new FileCache('/path/to/cache');
+});
+
+// 解析服务
+$logger = $container->get(LoggerInterface::class);
+
+// 自动注入
+class UserController {
+    public function __construct(
+        private LoggerInterface $logger,
+        private CacheInterface $cache
+    ) {}
+}
+$controller = $container->make(UserController::class);
+```
+
+### 12. ORM 关系
+
+```php
+use Aphrodite\ORM\Entity;
+use Aphrodite\ORM\Attributes\BelongsTo;
+use Aphrodite\ORM\Attributes\HasMany;
+use Aphrodite\ORM\Attributes\BelongsToMany;
+
+class User extends Entity
+{
+    #[HasMany(Post::class, foreignKey: 'user_id')]
+    public function posts() { return $this->hasMany(); }
+    
+    #[BelongsToMany(Role::class, pivotTable: 'user_role')]
+    public function roles() { return $this->belongsToMany(); }
+}
+
+class Post extends Entity
+{
+    #[BelongsTo(User::class, foreignKey: 'user_id')]
+    public function author() { return $this->belongsTo(); }
+    
+    #[HasMany(Comment::class, foreignKey: 'post_id')]
+    public function comments() { return $this->hasMany(); }
+}
+
+// 使用关系
+$user = User::find(1);
+$posts = $user->posts(); // 获取所有文章
+$roles = $user->roles(); // 获取所有角色
+```
+
+### 13. 事件系统
+
+```php
+use Aphrodite\Events\TypedEvent;
+use Aphrodite\Events\TypedEventDispatcher;
+use Aphrodite\Events\EventSubscriberInterface;
+
+// 定义事件
+class UserRegisteredEvent extends TypedEvent
+{
+    public function __construct(private User $user) {}
+    public function getUser(): User { return $this->user; }
+}
+
+// 监听事件
+$dispatcher = new TypedEventDispatcher();
+$dispatcher->addListener('user.registered', function (UserRegisteredEvent $event) {
+    $user = $event->getUser();
+    // 发送欢迎邮件...
+});
+
+// 触发事件
+$dispatcher->dispatch(new UserRegisteredEvent($user));
+```
+
+### 14. 异常处理
+
+```php
+use Aphrodite\Exceptions\Handler;
+use Aphrodite\Exceptions\ValidationException;
+use Aphrodite\Exceptions\EntityNotFoundException;
+
+$handler = new Handler();
+$handler->setDebug(true);
+
+try {
+    $user = User::find($id);
+    if (!$user) {
+        throw new EntityNotFoundException("User not found: {$id}");
+    }
+} catch (ValidationException $e) {
+    $response = $handler->render($e);
+    // 处理验证异常
+} catch (EntityNotFoundException $e) {
+    $response = $handler->render($e);
+    // 处理实体未找到异常
+}
+```
+
+### 15. 意图解析 (AI 驱动)
+
+```php
+use Aphrodite\Engine\Parser\HybridIntentParser;
+use Aphrodite\Engine\Parser\RuleBasedParser;
+use Aphrodite\Engine\LLM\MockLLMClient;
+
+// 使用规则解析器
+$parser = new RuleBasedParser();
+$intent = $parser->parse('Create a user with authentication and email validation');
+
+echo $intent->getEntity();    // 'User'
+echo $intent->hasFeature('authentication'); // true
+echo $intent->hasFeature('email'); // true
+
+// 使用混合解析器 (规则 + LLM)
+$llmClient = new MockLLMClient();
+$hybrid = new HybridIntentParser($llmClient);
+$hybrid->preferLlm(); // 优先使用 LLM 结果
+
+$intent = $hybrid->parse('Build a product catalog with search');
+```
+
+### 16. CLI 命令
 
 ```bash
 # 查看帮助

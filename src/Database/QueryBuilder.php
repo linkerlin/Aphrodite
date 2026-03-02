@@ -136,6 +136,17 @@ class QueryBuilder
     }
 
     /**
+     * Add a raw where condition.
+     */
+    public function whereRaw(string $sql, array $bindings = []): self
+    {
+        $conjunction = empty($this->where) ? '' : 'AND ';
+        $this->where[] = $conjunction . $sql;
+        $this->whereBindings = array_merge($this->whereBindings, $bindings);
+        return $this;
+    }
+
+    /**
      * Add an order by clause.
      */
     public function orderBy(string $column, string $direction = 'ASC'): self

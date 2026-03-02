@@ -29,7 +29,7 @@ abstract class Entity
     /**
      * Get the table name for this entity.
      */
-    protected static function getTable(): string
+    public static function getTable(): string
     {
         $class = basename(str_replace('\\', '/', static::class));
         return strtolower($class) . 's';
@@ -46,7 +46,7 @@ abstract class Entity
     /**
      * Get PDO instance.
      */
-    protected static function getPdo(): \PDO
+    public static function getPdo(): \PDO
     {
         if (self::$pdo === null) {
             self::$pdo = Connection::getInstance();

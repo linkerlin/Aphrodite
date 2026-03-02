@@ -1,5 +1,49 @@
 # Aphrodite API 参考
 
+## 容器
+
+### Container (PSR-11)
+
+```php
+class Container implements ContainerInterface
+{
+    // 绑定服务
+    public function bind(string $id, callable $concrete): self;
+    public function singleton(string $id, callable $concrete): self;
+    public function instance(string $id, mixed $instance): self;
+    
+    // 解析服务
+    public function get(string $id): mixed;
+    public function has(string $id): bool;
+    public function make(string $id, array $parameters = []): mixed;
+    
+    // 服务提供者
+    public function register(ServiceProviderInterface $provider): self;
+    public function boot(): self;
+    
+    // 自动注入
+    public function call(callable $callback, array $parameters = []): mixed;
+}
+```
+
+### Application
+
+```php
+class Application extends Container
+{
+    public static function getInstance(): self;
+    
+    // 生命周期
+    public function bootstrap(): self;
+    public function run(): void;
+    
+    // 环境检测
+    public function environment(): string;
+    public function isLocal(): bool;
+    public function isProduction(): bool;
+}
+```
+
 ## ORM
 
 ### Entity
@@ -66,6 +110,64 @@ class QueryBuilder
     public function delete(): int;
     public function count(): int;
     public function exists(): bool;
+}
+```
+
+### ORM 关系
+
+```php
+// BelongsTo - 属于关系 (Post 属于 User)
+class BelongsTo extends Relation
+{
+    public function getResults(): ?Entity;
+}
+
+// HasMany - 一对多关系 (User 有多个 Post)
+class HasMany extends Relation
+{
+    public function getResults(): array;
+}
+
+// HasOne - 一对一关系 (User 有一个 Profile)
+class HasOne extends Relation
+{
+    public function getResults(): ?Entity;
+}
+
+// BelongsToMany - 多对多关系 (User 属于多个 Role)
+class BelongsToMany extends Relation
+{
+    public function getResults(): array;
+    public function attach(int $id, array $pivot = []): void;
+    public function detach(int $id): void;
+    public function sync(array $ids): void;
+}
+```
+
+### 关系属性
+
+```php
+use Aphrodite\ORM\Attributes\BelongsTo;
+use Aphrodite\ORM\Attributes\HasMany;
+use Aphrodite\ORM\Attributes\HasOne;
+use Aphrodite\ORM\Attributes\BelongsToMany;
+
+class User extends Entity
+{
+    #[HasMany(Post::class, foreignKey: 'user_id')]
+    public function posts() { return $this->hasMany(); }
+    
+    #[HasOne(Profile::class, foreignKey: 'user_id')]
+    public function profile() { return $this->hasOne(); }
+}
+
+class Post extends Entity
+{
+    #[BelongsTo(User::class, foreignKey: 'user_id')]
+    public function author() { return $this->belongsTo(); }
+    
+    #[BelongsToMany(Tag::class, pivotTable: 'post_tag')]
+    public function tags() { return $this->belongsToMany(); }
 }
 ```
 
@@ -172,6 +274,75 @@ class MiddlewareStack
 interface MiddlewareInterface
 {
     public function process(Request $request, callable $next): Response;
+}
+```
+
+## 异常处理
+
+### Exception Hierarchy
+
+```php
+// 基类
+abstract class AphroditeException extends Exception
+{
+    protected array $context = [];
+    public function getContext(): array;
+    public function setContext(array $context): self;
+}
+
+// 具体异常
+class ValidationException extends AphroditeException {}
+class EntityNotFoundException extends AphroditeException {}
+class RouteNotFoundException extends AphroditeException {}
+class AuthenticationException extends AphroditeException {}
+class AuthorizationException extends AphroditeException {}
+```
+
+### Exception Handler
+
+```php
+class Handler
+{
+    public function report(Throwable $e): void;
+    public function render(Throwable $e, Request $request = null): Response;
+    public function shouldReport(Throwable $e): bool;
+    public function setDebug(bool $debug): self;
+}
+```
+
+## 事件系统
+
+### TypedEvent
+
+```php
+abstract class TypedEvent
+{
+    public function getName(): string;
+    public function getPayload(): mixed;
+    public function stopPropagation(): void;
+    public function isPropagationStopped(): bool;
+}
+```
+
+### TypedEventDispatcher
+
+```php
+class TypedEventDispatcher
+{
+    public function addListener(string $eventName, callable $listener, int $priority = 0): self;
+    public function removeListener(string $eventName, callable $listener): self;
+    public function hasListeners(string $eventName): bool;
+    public function dispatch(TypedEvent $event): TypedEvent;
+    public function addSubscriber(EventSubscriberInterface $subscriber): self;
+}
+```
+
+### EventSubscriberInterface
+
+```php
+interface EventSubscriberInterface
+{
+    public static function getSubscribedEvents(): array;
 }
 ```
 
@@ -366,15 +537,166 @@ class Environment
 }
 ```
 
-## 引擎
-
-### IntentParser
+### ConfigSchema
 
 ```php
-class IntentParser
+class ConfigSchema
 {
-    public function parse(string $description): array;
-    // 返回: ['entity', 'features', 'constraints', 'operations']
+    public function define(string $key, string $type, mixed $default = null, bool $required = false): self;
+    public function defineString(string $key, ?string $default = null, bool $required = false): self;
+    public function defineInt(string $key, ?int $default = null, bool $required = false): self;
+    public function defineBool(string $key, ?bool $default = null, bool $required = false): self;
+    public function defineArray(string $key, ?array $default = null, bool $required = false): self;
+    public function getDefinition(string $key): ?array;
+    public function getDefaults(): array;
+}
+```
+
+### ConfigValidator
+
+```php
+class ConfigValidator
+{
+    public function __construct(ConfigSchema $schema);
+    
+    public function validate(array $config): bool;
+    public function errors(): array;
+    public function getValidated(): array;
+    public function addCustomRule(string $name, callable $rule): self;
+}
+```
+
+## 引擎
+
+### Intent (值对象)
+
+```php
+class Intent
+{
+    // 创建
+    public function __construct(
+        ?string $entity = null,
+        array $features = [],
+        array $constraints = [],
+        array $operations = [],
+        array $metadata = []
+    );
+    public static function empty(): self;
+    public static function fromArray(array $data): self;
+    
+    // 访问
+    public function getEntity(): ?string;
+    public function hasEntity(): bool;
+    public function getFeatures(): array;
+    public function hasFeature(string $feature): bool;
+    public function getOperations(): array;
+    public function hasOperation(string $operation): bool;
+    public function getConstraints(): array;
+    public function hasConstraint(string $key): bool;
+    public function getConstraint(string $key, mixed $default = null): mixed;
+    public function getMetadata(): array;
+    public function getMeta(string $key, mixed $default = null): mixed;
+    
+    // 修改 (返回新实例)
+    public function withFeature(string $feature): self;
+    public function withOperation(string $operation): self;
+    public function withConstraint(string $key, mixed $value): self;
+    public function merge(Intent $other): self;
+    
+    // 工具
+    public function isEmpty(): bool;
+    public function toArray(): array;
+}
+```
+
+### IntentParserInterface
+
+```php
+interface IntentParserInterface
+{
+    public function parse(string $description): Intent;
+    public function canParse(string $description): bool;
+    public function getName(): string;
+}
+```
+
+### RuleBasedParser
+
+```php
+class RuleBasedParser implements IntentParserInterface
+{
+    public function parse(string $description): Intent;
+    public function canParse(string $description): bool;
+    public function getName(): string; // 'rule-based'
+}
+```
+
+### HybridIntentParser
+
+```php
+class HybridIntentParser implements IntentParserInterface
+{
+    public function __construct(?LLMClientInterface $llmClient = null);
+    
+    public function setLlmClient(LLMClientInterface $client): self;
+    public function setLlmThreshold(float $threshold): self;
+    public function preferLlm(bool $prefer = true): self;
+    
+    public function parse(string $description): Intent;
+    public function canParse(string $description): bool;
+    public function getName(): string; // 'hybrid'
+}
+```
+
+### LLMClientInterface
+
+```php
+interface LLMClientInterface
+{
+    public function parseIntent(string $description): array;
+    public function generateCode(string $prompt, array $context = []): string;
+    public function completeCode(string $code, array $options = []): string;
+    public function getModelName(): string;
+    public function isAvailable(): bool;
+    public function getLastError(): ?string;
+}
+```
+
+### 代码定义
+
+```php
+class ClassDefinition
+{
+    public function __construct(string $name);
+    public function setNamespace(string $namespace): self;
+    public function setExtends(string $class): self;
+    public function addImplements(string $interface): self;
+    public function addTrait(string $trait): self;
+    public function addProperty(PropertyDefinition $property): self;
+    public function addMethod(MethodDefinition $method): self;
+    public function addAttribute(string $attribute, array $args = []): self;
+    public function render(): string;
+}
+
+class MethodDefinition
+{
+    public function __construct(string $name);
+    public function setVisibility(string $visibility): self; // public|protected|private
+    public function setStatic(bool $static = true): self;
+    public function setReturnType(string $type): self;
+    public function addParameter(string $name, string $type = '', mixed $default = null): self;
+    public function setBody(string $body): self;
+    public function render(): string;
+}
+
+class PropertyDefinition
+{
+    public function __construct(string $name);
+    public function setVisibility(string $visibility): self;
+    public function setStatic(bool $static = true): self;
+    public function setType(string $type): self;
+    public function setDefault(mixed $default): self;
+    public function render(): string;
 }
 ```
 
